@@ -52,6 +52,18 @@ type ShopItem = {
   desc: string;
 };
 
+type RewardBreakdown = {
+  title: string;
+  baseReward: number;
+  perCorrectReward: number;
+  accuracyBonus: number;
+  streakBonus: number;
+  correctionReward: number;
+  totalReward: number;
+  accuracy: number;
+  maxStreak: number;
+};
+
 const subjects: Array<{ id: SubjectId; name: string; icon: string; color: string }> = [
   { id: "math", name: "數學", icon: "➗", color: "from-amber-100 to-orange-100" },
   { id: "chinese", name: "國語", icon: "📖", color: "from-rose-100 to-pink-100" },
@@ -155,6 +167,69 @@ function getRandomQuestions(allQuestions: Question[], count = 20) {
   return shuffled.slice(0, Math.min(count, shuffled.length));
 }
 
+function calculateReward(
+  correctCount: number,
+  totalQuestions: number,
+  answers: number[],
+  questions: Question[]
+): RewardBreakdown {
+  const baseReward = 20;
+  const perCorrectReward = correctCount * 5;
+  const accuracy = totalQuestions > 0 ? correctCount / totalQuestions : 0;
+
+  let accuracyBonus = 5;
+  let title = "再接再厲";
+
+  if (accuracy === 1) {
+    accuracyBonus = 80;
+    title = "完美探險";
+  } else if (accuracy >= 0.9) {
+    accuracyBonus = 60;
+    title = "超棒表現";
+  } else if (accuracy >= 0.8) {
+    accuracyBonus = 40;
+    title = "優秀完成";
+  } else if (accuracy >= 0.6) {
+    accuracyBonus = 20;
+    title = "持續進步";
+  }
+
+  let maxStreak = 0;
+  let currentStreak = 0;
+
+  answers.forEach((answer, index) => {
+    if (answer === questions[index]?.answer) {
+      currentStreak += 1;
+      maxStreak = Math.max(maxStreak, currentStreak);
+    } else {
+      currentStreak = 0;
+    }
+  });
+
+  let streakBonus = 0;
+
+  if (maxStreak >= 10) {
+    streakBonus = 50;
+  } else if (maxStreak >= 5) {
+    streakBonus = 20;
+  }
+
+  const totalReward =
+    baseReward + perCorrectReward + accuracyBonus + streakBonus;
+
+  return {
+    title,
+    baseReward,
+    perCorrectReward,
+    accuracyBonus,
+    streakBonus,
+    correctionReward: 0,
+    totalReward,
+    accuracy,
+    maxStreak
+  };
+}
+
 export default function SproutLearningApp() {
   const [page, setPage] = useState<PageId>("home");
   const [profile, setProfile] = useState<LearningProfile>(getInitialState);
@@ -163,7 +238,8 @@ export default function SproutLearningApp() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [finished, setFinished] = useState(false);
-  const [lastReward, setLastReward] = useState(0);
+  const [rewardBreakdown, setRewardBreakdown] = useState<RewardBreakdown | null>(null);
+  const [correctionClaimed, setCorrectionClaimed] = useState(false);
 
   const currentQuiz = questionBank[selectedSubject];
   const questions = currentQuestions;
@@ -172,6 +248,9 @@ export default function SproutLearningApp() {
   const progress = finished || questions.length === 0 ? 100 : Math.round((currentIndex / questions.length) * 100);
 
   const ownedItems = useMemo(() => shopItems.filter((item) => profile.owned.includes(item.id)), [profile.owned]);
+  const displayedReward =
+    rewardBreakdown ?? calculateReward(correctCount, questions.length, answers, questions);
+  const hasWrongAnswers = finished && correctCount < questions.length;
 
   function startQuiz(subjectId: SubjectId) {
     const quiz = questionBank[subjectId];
@@ -185,7 +264,8 @@ export default function SproutLearningApp() {
     setCurrentIndex(0);
     setAnswers([]);
     setFinished(false);
-    setLastReward(0);
+    setRewardBreakdown(null);
+    setCorrectionClaimed(false);
     setPage("quiz");
   }
 
@@ -196,21 +276,18 @@ export default function SproutLearningApp() {
 
     if (currentIndex + 1 >= questions.length) {
       const finalCorrect = nextAnswers.filter((a, idx) => a === questions[idx]?.answer).length;
-      const accuracy = questions.length > 0 ? finalCorrect / questions.length : 0;
-      const baseReward = currentQuiz.reward;
-      const bonus = accuracy >= 0.8 ? 40 : accuracy >= 0.6 ? 20 : 10;
-      const reward = baseReward + bonus;
-      setLastReward(reward);
+      const reward = calculateReward(finalCorrect, questions.length, nextAnswers, questions);
+      setRewardBreakdown(reward);
       setProfile((prev) => ({
         ...prev,
-        coins: prev.coins + reward,
+        coins: prev.coins + reward.totalReward,
         completedUnits: prev.completedUnits + 1,
         history: [
           {
             subject: currentQuiz.unitName,
             score: finalCorrect,
             total: questions.length,
-            reward,
+            reward: reward.totalReward,
             date: new Date().toLocaleDateString("zh-TW"),
           },
           ...prev.history,
@@ -227,7 +304,40 @@ export default function SproutLearningApp() {
     setCurrentIndex(0);
     setAnswers([]);
     setFinished(false);
-    setLastReward(0);
+    setRewardBreakdown(null);
+    setCorrectionClaimed(false);
+  }
+
+  function claimCorrectionReward() {
+    if (correctionClaimed || !rewardBreakdown || correctCount >= questions.length) return;
+
+    const correctionReward = 30;
+    setCorrectionClaimed(true);
+    setRewardBreakdown((prev) => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        correctionReward,
+        totalReward: prev.totalReward + correctionReward,
+      };
+    });
+    setProfile((prev) => {
+      const nextHistory = [...prev.history];
+
+      if (nextHistory.length > 0) {
+        nextHistory[0] = {
+          ...nextHistory[0],
+          reward: nextHistory[0].reward + correctionReward,
+        };
+      }
+
+      return {
+        ...prev,
+        coins: prev.coins + correctionReward,
+        history: nextHistory,
+      };
+    });
   }
 
   function buyItem(item: ShopItem) {
@@ -378,10 +488,42 @@ export default function SproutLearningApp() {
         {page === "quiz" && finished && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             <Card className="rounded-3xl">
-              <CardContent className="p-6 text-center">
+              <CardContent className="p-6">
+                <div className="text-center">
                 <div className="text-6xl">🎉</div>
-                <h2 className="mt-3 text-2xl font-bold">任務完成！</h2>
-                <p className="mt-2 text-slate-600">答對 {correctCount} / {questions.length} 題，獲得 {lastReward} 能量。</p>
+                <h2 className="mt-3 text-2xl font-bold">任務完成：{displayedReward.title}</h2>
+                <p className="mt-2 text-slate-600">答對 {correctCount} / {questions.length} 題</p>
+                <p className="mt-1 text-slate-600">正確率 {Math.round(displayedReward.accuracy * 100)}%｜最大連續答對 {displayedReward.maxStreak} 題</p>
+                </div>
+
+                <div className="mx-auto mt-6 max-w-xl rounded-3xl bg-slate-50 p-5 text-left">
+                  <h3 className="text-lg font-bold">獎勵明細</h3>
+                  <div className="mt-4 space-y-2 text-sm text-slate-600">
+                    <div className="flex justify-between gap-4"><span>完成獎勵</span><span className="font-semibold text-slate-900">+{displayedReward.baseReward}</span></div>
+                    <div className="flex justify-between gap-4"><span>答對題數獎勵</span><span className="font-semibold text-slate-900">+{displayedReward.perCorrectReward}</span></div>
+                    <div className="flex justify-between gap-4"><span>正確率加成</span><span className="font-semibold text-slate-900">+{displayedReward.accuracyBonus}</span></div>
+                    <div className="flex justify-between gap-4"><span>連續答對加成</span><span className="font-semibold text-slate-900">+{displayedReward.streakBonus}</span></div>
+                    <div className="flex justify-between gap-4"><span>錯題訂正獎勵</span><span className="font-semibold text-slate-900">+{displayedReward.correctionReward}</span></div>
+                    <div className="border-t border-slate-200 pt-3 flex justify-between gap-4 text-base text-slate-900">
+                      <span className="font-bold">本次總獲得</span>
+                      <span className="font-bold">+{displayedReward.totalReward} 能量</span>
+                    </div>
+                  </div>
+                </div>
+
+                {hasWrongAnswers && (
+                  <div className="mx-auto mt-4 max-w-xl rounded-3xl bg-amber-50 p-4 text-amber-900">
+                    <div className="font-semibold">完成錯題訂正可獲得額外 30 能量</div>
+                    <Button
+                      className="mt-3 rounded-2xl"
+                      disabled={correctionClaimed}
+                      onClick={claimCorrectionReward}
+                    >
+                      {correctionClaimed ? "已領取錯題訂正獎勵" : "完成錯題訂正"}
+                    </Button>
+                  </div>
+                )}
+
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
                   <Button className="rounded-2xl" onClick={() => setPage("shop")}>去商店兌換</Button>
                   <Button variant="outline" className="rounded-2xl" onClick={resetQuiz}><RotateCcw className="mr-2 h-4 w-4" />再挑戰一次</Button>
