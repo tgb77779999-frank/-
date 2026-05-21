@@ -1,4 +1,5 @@
 import { mathQuestions } from "./mathQuestions";
+import { chineseQuestions } from "./chineseQuestions";
 
 export const questionBank = {
   math: {
@@ -9,21 +10,11 @@ export const questionBank = {
     questions: mathQuestions
   },
   chinese: {
-    unitName: "四年級國語｜詞語理解複習",
-    reward: 70,
+    subjectName: "國語",
+    unitName: "四年級國語｜康軒方向綜合複習",
+    reward: 100,
     drawCount: 20,
-    questions: [
-      { id: "chinese-001", q: "「專心致志」的意思最接近哪一個？", options: ["非常害怕", "全神貫注", "跑得很快", "心情難過"], answer: 1, explain: "專心致志表示精神集中、全神貫注。" },
-      { id: "chinese-002", q: "「欣賞」一詞通常表示？", options: ["討厭", "責備", "喜愛並觀看", "忘記"], answer: 2, explain: "欣賞表示以喜愛的心情觀看或感受。" },
-      { id: "chinese-003", q: "下列哪個詞語和「勇敢」相反？", options: ["膽小", "努力", "開心", "聰明"], answer: 0, explain: "勇敢的相反詞是膽小。" },
-      { id: "chinese-004", q: "「井井有條」形容什麼？", options: ["很混亂", "很整齊有秩序", "很危險", "很安靜"], answer: 1, explain: "井井有條表示整齊、有條理。" },
-      { id: "chinese-005", q: "「豐富」最適合形容？", options: ["內容很多", "聲音很小", "速度很慢", "顏色很暗"], answer: 0, explain: "豐富表示種類或內容很多。" },
-      { id: "chinese-006", q: "「迫不及待」表示？", options: ["不想做", "等不及", "很生氣", "慢慢來"], answer: 1, explain: "迫不及待表示急切到不能再等待。" },
-      { id: "chinese-007", q: "「溫暖」的相反詞是？", options: ["寒冷", "明亮", "整齊", "快速"], answer: 0, explain: "溫暖的相反詞是寒冷。" },
-      { id: "chinese-008", q: "下列哪一個是成語？", options: ["很高", "努力讀書", "畫蛇添足", "跑步"], answer: 2, explain: "畫蛇添足是成語，表示多此一舉。" },
-      { id: "chinese-009", q: "「寬廣」可以形容？", options: ["道路很大很開闊", "聲音很尖", "味道很酸", "時間很短"], answer: 0, explain: "寬廣表示空間大、開闊。" },
-      { id: "chinese-010", q: "「仔細」的意思是？", options: ["隨便", "認真細心", "快速離開", "非常吵"], answer: 1, explain: "仔細表示認真且細心。" },
-    ],
+    questions: chineseQuestions
   },
   science: {
     unitName: "四年級自然｜植物與生活複習",
