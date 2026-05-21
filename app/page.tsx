@@ -8,11 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, Coins, Home, ShoppingBag, Sparkles, Trophy, RotateCcw, CheckCircle2, XCircle } from "lucide-react";
+import { questionBank as rawQuestionBank } from "@/data/questionBank";
 
 type SubjectId = "math" | "chinese" | "science" | "social";
 type PageId = "home" | "learn" | "quiz" | "shop";
 
 type Question = {
+  id: string;
   q: string;
   options: string[];
   answer: number;
@@ -22,6 +24,7 @@ type Question = {
 type Quiz = {
   unitName: string;
   reward: number;
+  drawCount?: number;
   questions: Question[];
 };
 
@@ -56,7 +59,9 @@ const subjects: Array<{ id: SubjectId; name: string; icon: string; color: string
   { id: "social", name: "社會", icon: "🌏", color: "from-sky-100 to-cyan-100" },
 ];
 
-const quizBank: Record<SubjectId, Quiz> = {
+const questionBank = rawQuestionBank as Record<SubjectId, Quiz>;
+
+const quizBank = {
   math: {
     unitName: "四年級數學｜分數與小數複習",
     reward: 80,
@@ -142,25 +147,41 @@ function getInitialState(): LearningProfile {
   };
 }
 
+function getRandomQuestions(allQuestions: Question[], count = 20) {
+  if (!Array.isArray(allQuestions)) return [];
+
+  const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+
+  return shuffled.slice(0, Math.min(count, shuffled.length));
+}
+
 export default function SproutLearningApp() {
   const [page, setPage] = useState<PageId>("home");
   const [profile, setProfile] = useState<LearningProfile>(getInitialState);
   const [selectedSubject, setSelectedSubject] = useState<SubjectId>("math");
+  const [currentQuestions, setCurrentQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [finished, setFinished] = useState(false);
   const [lastReward, setLastReward] = useState(0);
 
-  const currentQuiz = quizBank[selectedSubject];
-  const questions = currentQuiz.questions;
+  const currentQuiz = questionBank[selectedSubject];
+  const questions = currentQuestions;
   const currentQuestion = questions[currentIndex];
-  const correctCount = answers.filter((a, idx) => a === questions[idx].answer).length;
-  const progress = finished ? 100 : Math.round((currentIndex / questions.length) * 100);
+  const correctCount = answers.filter((a, idx) => a === questions[idx]?.answer).length;
+  const progress = finished || questions.length === 0 ? 100 : Math.round((currentIndex / questions.length) * 100);
 
   const ownedItems = useMemo(() => shopItems.filter((item) => profile.owned.includes(item.id)), [profile.owned]);
 
   function startQuiz(subjectId: SubjectId) {
+    const quiz = questionBank[subjectId];
+    const selectedQuestions = getRandomQuestions(
+      quiz.questions,
+      quiz.drawCount || 20
+    );
+
     setSelectedSubject(subjectId);
+    setCurrentQuestions(selectedQuestions);
     setCurrentIndex(0);
     setAnswers([]);
     setFinished(false);
@@ -169,13 +190,13 @@ export default function SproutLearningApp() {
   }
 
   function chooseAnswer(optionIndex: number) {
-    if (finished) return;
+    if (finished || !currentQuestion) return;
     const nextAnswers = [...answers, optionIndex];
     setAnswers(nextAnswers);
 
     if (currentIndex + 1 >= questions.length) {
-      const finalCorrect = nextAnswers.filter((a, idx) => a === questions[idx].answer).length;
-      const accuracy = finalCorrect / questions.length;
+      const finalCorrect = nextAnswers.filter((a, idx) => a === questions[idx]?.answer).length;
+      const accuracy = questions.length > 0 ? finalCorrect / questions.length : 0;
       const baseReward = currentQuiz.reward;
       const bonus = accuracy >= 0.8 ? 40 : accuracy >= 0.6 ? 20 : 10;
       const reward = baseReward + bonus;
@@ -306,15 +327,28 @@ export default function SproutLearningApp() {
                 <CardContent className={`bg-gradient-to-br ${subject.color} p-6`}>
                   <div className="mb-4 text-5xl">{subject.icon}</div>
                   <h2 className="text-xl font-bold">{subject.name}</h2>
-                  <p className="mt-2 min-h-12 text-sm text-slate-600">{quizBank[subject.id].unitName}</p>
-                  <Button className="mt-5 w-full rounded-2xl" onClick={() => startQuiz(subject.id)}>挑戰 10 題</Button>
+                  <p className="mt-2 min-h-12 text-sm text-slate-600">{questionBank[subject.id].unitName}</p>
+                  <Button className="mt-5 w-full rounded-2xl" onClick={() => startQuiz(subject.id)}>挑戰 20 題</Button>
                 </CardContent>
               </Card>
             ))}
           </motion.div>
         )}
 
-        {page === "quiz" && !finished && (
+        {page === "quiz" && !finished && questions.length === 0 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="rounded-3xl">
+              <CardContent className="p-6 text-center">
+                <BookOpen className="mx-auto h-10 w-10 text-slate-400" />
+                <h2 className="mt-3 text-xl font-bold">此科目尚未建立題庫</h2>
+                <p className="mt-2 text-slate-500">請先到題庫檔新增題目，再回來開始挑戰。</p>
+                <Button className="mt-5 rounded-2xl" onClick={() => setPage("learn")}>返回單元</Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {page === "quiz" && !finished && questions.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="rounded-3xl">
               <CardContent className="p-6">
@@ -363,7 +397,7 @@ export default function SproutLearningApp() {
                   {questions.map((question, idx) => {
                     const isCorrect = answers[idx] === question.answer;
                     return (
-                      <div key={idx} className="rounded-2xl bg-white p-4 shadow-sm">
+                      <div key={question.id} className="rounded-2xl bg-white p-4 shadow-sm">
                         <div className="flex items-start gap-2">
                           {isCorrect ? <CheckCircle2 className="mt-1 h-5 w-5 text-green-600" /> : <XCircle className="mt-1 h-5 w-5 text-red-500" />}
                           <div>
