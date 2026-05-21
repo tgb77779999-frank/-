@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -238,8 +238,17 @@ export default function SproutLearningApp() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [finished, setFinished] = useState(false);
+  const [answerLocked, setAnswerLocked] = useState(false);
   const [rewardBreakdown, setRewardBreakdown] = useState<RewardBreakdown | null>(null);
   const [correctionClaimed, setCorrectionClaimed] = useState(false);
+  const [correctionMode, setCorrectionMode] = useState(false);
+  const [correctionQuestions, setCorrectionQuestions] = useState<Question[]>([]);
+  const [correctionIndex, setCorrectionIndex] = useState(0);
+  const [correctionAnswers, setCorrectionAnswers] = useState<number[]>([]);
+  const [correctionAnswerLocked, setCorrectionAnswerLocked] = useState(false);
+  const [correctionMessage, setCorrectionMessage] = useState("");
+  const answerLockedRef = useRef(false);
+  const correctionAnswerLockedRef = useRef(false);
 
   const currentQuiz = questionBank[selectedSubject];
   const questions = currentQuestions;
@@ -251,6 +260,13 @@ export default function SproutLearningApp() {
   const displayedReward =
     rewardBreakdown ?? calculateReward(correctCount, questions.length, answers, questions);
   const hasWrongAnswers = finished && correctCount < questions.length;
+  const wrongQuestions = useMemo(
+    () => questions.filter((question, idx) => answers[idx] !== question.answer),
+    [answers, questions]
+  );
+  const correctionQuestion = correctionQuestions[correctionIndex];
+  const correctionProgress =
+    correctionQuestions.length === 0 ? 100 : Math.round((correctionIndex / correctionQuestions.length) * 100);
 
   function startQuiz(subjectId: SubjectId) {
     const quiz = questionBank[subjectId];
@@ -264,13 +280,25 @@ export default function SproutLearningApp() {
     setCurrentIndex(0);
     setAnswers([]);
     setFinished(false);
+    setAnswerLocked(false);
+    answerLockedRef.current = false;
     setRewardBreakdown(null);
     setCorrectionClaimed(false);
+    setCorrectionMode(false);
+    setCorrectionQuestions([]);
+    setCorrectionIndex(0);
+    setCorrectionAnswers([]);
+    setCorrectionAnswerLocked(false);
+    correctionAnswerLockedRef.current = false;
+    setCorrectionMessage("");
     setPage("quiz");
   }
 
   function chooseAnswer(optionIndex: number) {
-    if (finished || !currentQuestion) return;
+    if (finished || !currentQuestion || answerLockedRef.current) return;
+
+    answerLockedRef.current = true;
+    setAnswerLocked(true);
     const nextAnswers = [...answers, optionIndex];
     setAnswers(nextAnswers);
 
@@ -294,21 +322,36 @@ export default function SproutLearningApp() {
         ].slice(0, 8),
       }));
       setFinished(true);
+      answerLockedRef.current = false;
+      setAnswerLocked(false);
       return;
     }
 
-    setTimeout(() => setCurrentIndex((prev) => prev + 1), 300);
+    setTimeout(() => {
+      setCurrentIndex((prev) => prev + 1);
+      answerLockedRef.current = false;
+      setAnswerLocked(false);
+    }, 300);
   }
 
   function resetQuiz() {
     setCurrentIndex(0);
     setAnswers([]);
     setFinished(false);
+    setAnswerLocked(false);
+    answerLockedRef.current = false;
     setRewardBreakdown(null);
     setCorrectionClaimed(false);
+    setCorrectionMode(false);
+    setCorrectionQuestions([]);
+    setCorrectionIndex(0);
+    setCorrectionAnswers([]);
+    setCorrectionAnswerLocked(false);
+    correctionAnswerLockedRef.current = false;
+    setCorrectionMessage("");
   }
 
-  function claimCorrectionReward() {
+  function grantCorrectionReward() {
     if (correctionClaimed || !rewardBreakdown || correctCount >= questions.length) return;
 
     const correctionReward = 30;
@@ -338,6 +381,58 @@ export default function SproutLearningApp() {
         history: nextHistory,
       };
     });
+  }
+
+  function startCorrectionQuiz() {
+    if (!hasWrongAnswers || correctionClaimed) return;
+
+    const selectedCorrectionQuestions =
+      correctionQuestions.length > 0 ? correctionQuestions : wrongQuestions;
+
+    setCorrectionQuestions(selectedCorrectionQuestions);
+    setCorrectionIndex(0);
+    setCorrectionAnswers([]);
+    setCorrectionAnswerLocked(false);
+    correctionAnswerLockedRef.current = false;
+    setCorrectionMode(true);
+    setCorrectionMessage("");
+  }
+
+  function chooseCorrectionAnswer(optionIndex: number) {
+    if (!correctionMode || !correctionQuestion || correctionClaimed || correctionAnswerLockedRef.current) return;
+
+    correctionAnswerLockedRef.current = true;
+    setCorrectionAnswerLocked(true);
+    const nextAnswers = [...correctionAnswers, optionIndex];
+    setCorrectionAnswers(nextAnswers);
+
+    if (correctionIndex + 1 >= correctionQuestions.length) {
+      const remainingWrongQuestions = correctionQuestions.filter(
+        (question, idx) => nextAnswers[idx] !== question.answer
+      );
+
+      if (remainingWrongQuestions.length === 0) {
+        grantCorrectionReward();
+        setCorrectionQuestions([]);
+        setCorrectionMessage("錯題訂正全對，已獲得額外 30 能量！");
+      } else {
+        setCorrectionQuestions(remainingWrongQuestions);
+        setCorrectionMessage("還有題目訂正錯誤，請再訂正一次。");
+      }
+
+      setCorrectionMode(false);
+      setCorrectionIndex(0);
+      setCorrectionAnswers([]);
+      correctionAnswerLockedRef.current = false;
+      setCorrectionAnswerLocked(false);
+      return;
+    }
+
+    setTimeout(() => {
+      setCorrectionIndex((prev) => prev + 1);
+      correctionAnswerLockedRef.current = false;
+      setCorrectionAnswerLocked(false);
+    }, 300);
   }
 
   function buyItem(item: ShopItem) {
@@ -474,7 +569,7 @@ export default function SproutLearningApp() {
                   <h3 className="mb-5 text-lg font-bold leading-relaxed">{currentQuestion.q}</h3>
                   <div className="grid gap-3 md:grid-cols-2">
                     {currentQuestion.options.map((option, idx) => (
-                      <Button key={idx} variant="outline" className="h-auto justify-start rounded-2xl p-4 text-left text-base" onClick={() => chooseAnswer(idx)}>
+                      <Button key={idx} variant="outline" className="h-auto justify-start rounded-2xl p-4 text-left text-base" disabled={answerLocked} onClick={() => chooseAnswer(idx)}>
                         <span className="mr-3 rounded-full bg-slate-100 px-2 py-1 text-xs">{String.fromCharCode(65 + idx)}</span>{option}
                       </Button>
                     ))}
@@ -513,14 +608,56 @@ export default function SproutLearningApp() {
 
                 {hasWrongAnswers && (
                   <div className="mx-auto mt-4 max-w-xl rounded-3xl bg-amber-50 p-4 text-amber-900">
-                    <div className="font-semibold">完成錯題訂正可獲得額外 30 能量</div>
+                    <div className="font-semibold">
+                      {correctionClaimed
+                        ? "錯題訂正全對，已獲得額外 30 能量"
+                        : "完成錯題訂正可獲得額外 30 能量"}
+                    </div>
+                    {correctionMessage && (
+                      <div className="mt-2 text-sm">{correctionMessage}</div>
+                    )}
                     <Button
                       className="mt-3 rounded-2xl"
                       disabled={correctionClaimed}
-                      onClick={claimCorrectionReward}
+                      onClick={startCorrectionQuiz}
                     >
-                      {correctionClaimed ? "已領取錯題訂正獎勵" : "完成錯題訂正"}
+                      {correctionClaimed
+                        ? "已領取錯題訂正獎勵"
+                        : correctionQuestions.length > 0
+                          ? "再次訂正錯題"
+                          : "完成錯題訂正"}
                     </Button>
+                  </div>
+                )}
+
+                {correctionMode && correctionQuestion && (
+                  <div className="mx-auto mt-4 max-w-xl rounded-3xl bg-white p-5 text-left shadow-sm">
+                    <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <Badge variant="outline" className="mb-2 rounded-full">訂正模式</Badge>
+                        <h3 className="text-lg font-bold">
+                          錯題訂正第 {correctionIndex + 1} 題 / 共 {correctionQuestions.length} 題
+                        </h3>
+                      </div>
+                    </div>
+                    <Progress value={correctionProgress} className="mb-5" />
+                    <h4 className="mb-5 text-base font-bold leading-relaxed">{correctionQuestion.q}</h4>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {correctionQuestion.options.map((option, idx) => (
+                        <Button
+                          key={idx}
+                          variant="outline"
+                          className="h-auto justify-start rounded-2xl p-4 text-left text-base"
+                          disabled={correctionAnswerLocked}
+                          onClick={() => chooseCorrectionAnswer(idx)}
+                        >
+                          <span className="mr-3 rounded-full bg-slate-100 px-2 py-1 text-xs">
+                            {String.fromCharCode(65 + idx)}
+                          </span>
+                          {option}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
