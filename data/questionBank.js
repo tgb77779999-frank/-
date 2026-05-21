@@ -1,17 +1,17 @@
-import { mathQuestions } from "./mathQuestions";
-import { chineseQuestions } from "./chineseQuestions";
+import { mathQuestions } from "./mathQuestions.js";
+import { chineseQuestions } from "./chineseQuestions.js";
 
 export const questionBank = {
   math: {
     subjectName: "數學",
-    unitName: "四年級數學｜康軒方向綜合複習",
+    unitName: "四年級下學期數學｜康軒方向綜合複習",
     reward: 100,
     drawCount: 20,
     questions: mathQuestions
   },
   chinese: {
     subjectName: "國語",
-    unitName: "四年級國語｜康軒方向綜合複習",
+    unitName: "四年級下學期國語｜康軒方向綜合複習",
     reward: 100,
     drawCount: 20,
     questions: chineseQuestions
