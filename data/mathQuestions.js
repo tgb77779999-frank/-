@@ -1,4 +1,4 @@
-export const mathQuestions = [
+const baseMathQuestions = [
   {
     id: "math-001",
     unit: "一億以內的數",
@@ -409,3 +409,180 @@ export const mathQuestions = [
     explain: "5 × 24 = 120，120 - 38 = 82。"
   }
 ];
+
+function buildOptions(correct, distractors, answerIndex) {
+  const uniqueDistractors = distractors
+    .filter((item) => item !== correct)
+    .filter((item, index, array) => array.indexOf(item) === index)
+    .slice(0, 3);
+
+  while (uniqueDistractors.length < 3) {
+    uniqueDistractors.push(correct + uniqueDistractors.length + 7);
+  }
+
+  const options = uniqueDistractors.map(String);
+  options.splice(answerIndex, 0, String(correct));
+
+  return { options, answer: answerIndex };
+}
+
+function createMathQuestion(number) {
+  const id = `math-${String(number).padStart(3, "0")}`;
+  const index = number - 51;
+  const answerIndex = index % 4;
+  const type = index % 10;
+
+  if (type === 0) {
+    const value = 10000000 + index * 234567;
+    const digit = Math.floor(value / 1000000) % 10;
+    const result = buildOptions(digit, [digit + 1, Math.max(0, digit - 1), (digit + 3) % 10], answerIndex);
+    return {
+      id,
+      unit: "一億以內的數",
+      q: `${value} 的百萬位數字是？`,
+      ...result,
+      explain: `${value} 從右邊數第七位是百萬位，百萬位數字是 ${digit}。`
+    };
+  }
+
+  if (type === 1) {
+    const a = 120 + index * 3;
+    const b = 4 + (index % 6);
+    const correct = a * b;
+    const result = buildOptions(correct, [correct + b, correct - b, correct + 100], answerIndex);
+    return {
+      id,
+      unit: "整數的乘法",
+      q: `${a} × ${b} = ?`,
+      ...result,
+      explain: `${a} × ${b} = ${correct}。`
+    };
+  }
+
+  if (type === 2) {
+    const divisor = 3 + (index % 7);
+    const quotient = 24 + index;
+    const dividend = divisor * quotient;
+    const result = buildOptions(quotient, [quotient + 2, quotient - 2, quotient + divisor], answerIndex);
+    return {
+      id,
+      unit: "整數的除法",
+      q: `${dividend} ÷ ${divisor} = ?`,
+      ...result,
+      explain: `${divisor} × ${quotient} = ${dividend}，所以答案是 ${quotient}。`
+    };
+  }
+
+  if (type === 3) {
+    const angle = 20 + ((index * 10) % 150);
+    const correct = angle < 90 ? "銳角" : angle === 90 ? "直角" : "鈍角";
+    const choices = ["銳角", "直角", "鈍角", "平角"];
+    const options = choices.filter((item) => item !== correct);
+    options.splice(answerIndex, 0, correct);
+    return {
+      id,
+      unit: "角度",
+      q: `${angle} 度的角屬於哪一種角？`,
+      options,
+      answer: answerIndex,
+      explain: "小於 90 度是銳角，等於 90 度是直角，大於 90 度且小於 180 度是鈍角。"
+    };
+  }
+
+  if (type === 4) {
+    const km = 2 + (index % 8);
+    const meters = 50 * (index % 18);
+    const correct = km * 1000 + meters;
+    const result = buildOptions(correct, [correct + 100, correct - 100, km * 100 + meters], answerIndex);
+    return {
+      id,
+      unit: "公里",
+      q: `${km} 公里 ${meters} 公尺等於幾公尺？`,
+      ...result,
+      explain: `${km} 公里 = ${km * 1000} 公尺，再加 ${meters} 公尺，共 ${correct} 公尺。`
+    };
+  }
+
+  if (type === 5) {
+    const first = 35 + (index % 6) * 5;
+    const second = 45 + (index % 5) * 5;
+    const correct = 180 - first - second;
+    const result = buildOptions(correct, [correct + 5, correct - 5, 180 - first], answerIndex);
+    return {
+      id,
+      unit: "三角形",
+      q: `三角形兩個角是 ${first} 度和 ${second} 度，第三個角是多少度？`,
+      ...result,
+      explain: `三角形內角和是 180 度，180 - ${first} - ${second} = ${correct}。`
+    };
+  }
+
+  if (type === 6) {
+    const denominator = 6 + (index % 7);
+    const left = 1 + (index % (denominator - 2));
+    const right = Math.min(denominator - 1, left + 1);
+    const correct = `${right}/${denominator}`;
+    const options = [`${left}/${denominator}`, correct, `${right}/${denominator + 1}`, `${left}/10`];
+    const normalized = options.filter((item, optionIndex, array) => array.indexOf(item) === optionIndex);
+
+    while (normalized.length < 4) normalized.push(`${normalized.length + 1}/${denominator + 2}`);
+    normalized.splice(normalized.indexOf(correct), 1);
+    normalized.splice(answerIndex, 0, correct);
+
+    return {
+      id,
+      unit: "分數",
+      q: `${left}/${denominator} 和 ${right}/${denominator} 哪一個比較大？`,
+      options: normalized.slice(0, 4),
+      answer: answerIndex,
+      explain: `分母相同時，分子越大，分數越大，所以 ${correct} 較大。`
+    };
+  }
+
+  if (type === 7) {
+    const a = ((index % 9) + 1) / 10;
+    const b = (((index + 3) % 8) + 1) / 10;
+    const correct = Number((a + b).toFixed(1));
+    const result = buildOptions(correct, [Number((correct + 0.1).toFixed(1)), Number((correct - 0.1).toFixed(1)), Number((a * b).toFixed(2))], answerIndex);
+    return {
+      id,
+      unit: "小數",
+      q: `${a.toFixed(1)} + ${b.toFixed(1)} = ?`,
+      ...result,
+      explain: `小數點對齊相加，${a.toFixed(1)} + ${b.toFixed(1)} = ${correct.toFixed(1)}。`
+    };
+  }
+
+  if (type === 8) {
+    const width = 3 + (index % 8);
+    const length = width + 4 + (index % 5);
+    const correct = length * width;
+    const result = buildOptions(correct, [(length + width) * 2, correct + width, correct - width], answerIndex);
+    return {
+      id,
+      unit: "周長與面積",
+      q: `長方形長 ${length} 公分、寬 ${width} 公分，面積是多少平方公分？`,
+      ...result,
+      explain: `長方形面積 = 長 × 寬 = ${length} × ${width} = ${correct}。`
+    };
+  }
+
+  const a = 40 + index;
+  const b = 6 + (index % 9);
+  const c = 2 + (index % 5);
+  const correct = a + b * c;
+  const result = buildOptions(correct, [(a + b) * c, correct + c, correct - c], answerIndex);
+  return {
+    id,
+    unit: "整數四則",
+    q: `${a} + ${b} × ${c} = ?`,
+    ...result,
+    explain: `先乘除後加減，${b} × ${c} = ${b * c}，${a} + ${b * c} = ${correct}。`
+  };
+}
+
+const generatedMathQuestions = Array.from({ length: 150 }, (_, index) =>
+  createMathQuestion(index + 51)
+);
+
+export const mathQuestions = [...baseMathQuestions, ...generatedMathQuestions];
