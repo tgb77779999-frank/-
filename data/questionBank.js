@@ -1,20 +1,12 @@
+import { mathQuestions } from "./mathQuestions";
+
 export const questionBank = {
   math: {
-    unitName: "四年級數學｜分數與小數複習",
-    reward: 80,
+    subjectName: "數學",
+    unitName: "四年級數學｜康軒方向綜合複習",
+    reward: 100,
     drawCount: 20,
-    questions: [
-      { id: "math-001", q: "1/2 等於下列哪一個小數？", options: ["0.2", "0.5", "1.2", "2.0"], answer: 1, explain: "1 ÷ 2 = 0.5，所以 1/2 等於 0.5。" },
-      { id: "math-002", q: "0.75 可以寫成哪一個分數？", options: ["1/4", "2/4", "3/4", "4/3"], answer: 2, explain: "0.75 = 75/100，約分後是 3/4。" },
-      { id: "math-003", q: "3.6 比 3.45 大還是小？", options: ["大", "小", "一樣大", "無法比較"], answer: 0, explain: "3.6 可看成 3.60，3.60 > 3.45。" },
-      { id: "math-004", q: "下列哪一個數最接近 1？", options: ["0.1", "0.9", "1.8", "2.1"], answer: 1, explain: "0.9 與 1 的差是 0.1，最接近 1。" },
-      { id: "math-005", q: "2/4 可以約分成？", options: ["1/4", "1/2", "2/2", "4/2"], answer: 1, explain: "2/4 的分子分母同除以 2，得到 1/2。" },
-      { id: "math-006", q: "0.3 + 0.4 = ?", options: ["0.07", "0.34", "0.7", "7"], answer: 2, explain: "小數點對齊相加，0.3 + 0.4 = 0.7。" },
-      { id: "math-007", q: "5/10 等於？", options: ["0.05", "0.5", "5", "10"], answer: 1, explain: "5 ÷ 10 = 0.5。" },
-      { id: "math-008", q: "哪一個分數最大？", options: ["1/4", "1/2", "1/8", "1/10"], answer: 1, explain: "同樣是 1 份，分母越小，每份越大，所以 1/2 最大。" },
-      { id: "math-009", q: "4.08 的 8 在哪一位？", options: ["個位", "十分位", "百分位", "千分位"], answer: 2, explain: "4.08 中，0 是十分位，8 是百分位。" },
-      { id: "math-010", q: "1.25 + 0.75 = ?", options: ["1.5", "1.75", "2", "2.5"], answer: 2, explain: "1.25 + 0.75 = 2.00。" },
-    ],
+    questions: mathQuestions
   },
   chinese: {
     unitName: "四年級國語｜詞語理解複習",
